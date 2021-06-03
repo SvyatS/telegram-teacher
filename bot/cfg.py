@@ -5,4 +5,4 @@ REQUEST_DATA = {
     'format': 'json',
     'lang': 'ru',
 }
-REQUEST_URL = 'https://api.forismatic.com/api/1.0/'
+
