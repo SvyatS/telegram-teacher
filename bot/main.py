@@ -1,38 +1,74 @@
 import telebot
-import urllib
-import pymongo
+import peewee  as pw
 
-import cfg
+from cfg import *
 
+#
+# class BaseModel(pw.Model):
+#     class Meta:
+#         database = pw.SqliteDatabase('../web/db.sqlite3')  # соединение с базой, из шаблона выше
 
+# Определяем модель исполнителя
+class core_question(pw.Model):
+    id = pw.PrimaryKeyField()
+    question = pw.CharField(column_name='question', max_length=256)
+    category = pw.CharField(column_name="category", max_length=64)
+    answer = pw.TextField(column_name="answer", null=True, default=None)
+    count = pw.IntegerField(column_name="count", default=1)
 
-bot = telebot.TeleBot(cfg.TOKEN)
-db_client = pymongo.MongoClient("mongodb+srv://svyatS:"+urllib.parse.quote("4L6Bh8GFEb@nbHK")+"@cluster0.w1xg8.mongodb.net/telegaTeacher?retryWrites=true&w=majority")
-current_db = db_client["telegaTeacher"]
-collection = current_db["teacher "]
+    class Meta:
+        database = pw.SqliteDatabase('../web/db.sqlite3')  # соединение с базой, из шаблона выше
+
+bot = telebot.TeleBot(TELEGRAM_TOKEN)
 
 @bot.message_handler(commands=['start', 'help'])
 def send_welcome(message):
-    bot.reply_to(message, "шо надо?")
+    text = "Я бот-студент-хелп, вы можете узнать ответ на любой вопрос, а если такого вопроса нет, задать и получить ответ. Выберите категории вопросов:"
+    keyboard = telebot.types.ReplyKeyboardMarkup(row_width=1, resize_keyboard=True)
+    btn_lessons = telebot.types.KeyboardButton(text="Занятия")
+    btn_work = telebot.types.KeyboardButton(text="Работа Вуза")
+    btn_teachers = telebot.types.KeyboardButton(text="Преподаватели")
+    keyboard.add(btn_lessons, btn_work, btn_teachers)
+    bot.reply_to(message, text, reply_markup=keyboard)
+
 
 @bot.message_handler(content_types=["text"])
 def msg_response(message):
-    arr = "gg"
-    for item in collection.find():
-        try:
-            arr = item[message.text]
-        except KeyError:
-            continue
+    category = message.text
+    keyboard = telebot.types.ReplyKeyboardMarkup(row_width=1, resize_keyboard=True)
+    if (category == "Занятия" or category == "Работа Вуза" or category == "Преподаватели" or category == "Другой вопрос"):
+        # cursor.execute(f"SELECT * FROM Question WHERE category={category}")
+        results = core_question.select().where(core_question.category == category)
 
-    if(arr == "gg"):
-        ins_result = collection.insert_one({
-            message.text: []
-        })
-        answer = "Я не знаю такого вопроса!"
+        for question in results:
+            btn = telebot.types.KeyboardButton(text=str(question.question))
+            keyboard.add(btn)
+
+        answer = "Выбери вопрос который тебя интересует"
+
+
     else:
-        answer = arr[0]
-    bot.send_message(message.chat.id, answer)
+        category = "Другой вопрос"
+        # cursor.execute(f"SELECT * FROM Question WHERE question={message.text}")
+        answer = core_question.get_or_none(core_question.question == message.text)
+        if answer is not None:
+            answer.count += 1
+            answer.save()
+            answer = answer.answer
+        else:
+            answer = "Такого вопроса нет"
+            question = core_question(
+                question=message.text,
+                category=category
+            )
+            question.save()
+
+        btn_lessons = telebot.types.KeyboardButton(text="Занятия")
+        btn_work = telebot.types.KeyboardButton(text="Работа Вуза")
+        btn_teachers = telebot.types.KeyboardButton(text="Преподаватели")
+        keyboard.add(btn_lessons, btn_work, btn_teachers)
+
+    bot.send_message(message.chat.id, answer, reply_markup=keyboard)
 
 
 bot.polling()
-
