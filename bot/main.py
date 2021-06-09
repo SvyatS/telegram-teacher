@@ -1,23 +1,7 @@
 import telebot
-import peewee  as pw
 
 from cfg import *
-
-#
-# class BaseModel(pw.Model):
-#     class Meta:
-#         database = pw.SqliteDatabase('../web/db.sqlite3')  # соединение с базой, из шаблона выше
-
-# Определяем модель исполнителя
-class core_question(pw.Model):
-    id = pw.PrimaryKeyField()
-    question = pw.CharField(column_name='question', max_length=256)
-    category = pw.CharField(column_name="category", max_length=64)
-    answer = pw.TextField(column_name="answer", null=True, default=None)
-    count = pw.IntegerField(column_name="count", default=1)
-
-    class Meta:
-        database = pw.SqliteDatabase('../web/db.sqlite3')  # соединение с базой, из шаблона выше
+from models import core_question
 
 bot = telebot.TeleBot(TELEGRAM_TOKEN)
 
@@ -37,7 +21,6 @@ def msg_response(message):
     category = message.text
     keyboard = telebot.types.ReplyKeyboardMarkup(row_width=1, resize_keyboard=True)
     if (category == "Занятия" or category == "Работа Вуза" or category == "Преподаватели" or category == "Другой вопрос"):
-        # cursor.execute(f"SELECT * FROM Question WHERE category={category}")
         results = core_question.select().where(core_question.category == category)
 
         for question in results:
